@@ -185,91 +185,94 @@ export default function Home() {
 
   return (
     <>
-      <Layout>
-        <Row align="middle">
+      <Layout className="h-screen">
+        <Row align="middle" className="bg-white py-3">
           <Col span={10} offset={2}>
-            <h1>Our todolist</h1>
+            <h1 className="text-2xl font-medium text-gray-600 ">
+              Buoya Todo List
+            </h1>
           </Col>
           <Col span={12} style={{ textAlign: "right", paddingRight: "200px" }}>
             <WalletSelector />
           </Col>
         </Row>
-      </Layout>
-      <Spin spinning={transactionInProgress}>
-        {!accountHasList ? (
-          <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
-            <Col span={8} offset={8}>
-              <Button
-                disabled={!account}
-                block
-                onClick={addNewList}
-                type="primary"
-                style={{ height: "40px", backgroundColor: "#3f67ff" }}
-              >
-                Add new list
-              </Button>
-            </Col>
-          </Row>
-        ) : (
-          <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
-            <Col span={8} offset={8}>
-              <Input.Group compact>
-                <Input
-                  onChange={(event) => onWriteTaskChange(event)}
-                  style={{ width: "calc(100% - 60px)" }}
-                  placeholder="Add a Task"
-                  size="large"
-                />
+        <Spin spinning={transactionInProgress}>
+          {!accountHasList ? (
+            <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
+              <Col span={8} offset={8}>
                 <Button
-                  onClick={handleAddNewTask}
+                  disabled={!account}
+                  block
+                  onClick={addNewList}
                   type="primary"
                   style={{ height: "40px", backgroundColor: "#3f67ff" }}
                 >
-                  Add
+                  Add new list
                 </Button>
-              </Input.Group>
-            </Col>
-            <Col span={8} offset={8}>
-              {tasks && (
-                <List
-                  size="small"
-                  bordered
-                  dataSource={tasks}
-                  renderItem={(task: Task) => (
-                    <List.Item
-                      actions={[
-                        <div>
-                          {task.completed ? (
-                            <Checkbox defaultChecked={true} disabled />
-                          ) : (
-                            <Checkbox
-                              onChange={(event) =>
-                                completeTask(event, task.task_id)
-                              }
-                            />
-                          )}
-                        </div>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={task.content}
-                        description={
-                          <Link
-                            href={`https://explorer.aptoslabs.com/account/${task.address}?network=devnet`}
-                            target="_blank"
-                          >{`${task.address.slice(0, 6)}...${task.address.slice(
-                            -5
-                          )}`}</Link>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
-              )}
-            </Col>
-          </Row>
-        )}
-      </Spin>
+              </Col>
+            </Row>
+          ) : (
+            <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
+              <Col span={8} offset={8}>
+                <Input.Group compact>
+                  <Input
+                    onChange={(event) => onWriteTaskChange(event)}
+                    style={{ width: "calc(100% - 60px)" }}
+                    placeholder="Add a Task"
+                    size="large"
+                  />
+                  <Button
+                    onClick={handleAddNewTask}
+                    type="primary"
+                    style={{ height: "40px", backgroundColor: "#3f67ff" }}
+                  >
+                    Add
+                  </Button>
+                </Input.Group>
+              </Col>
+              <Col span={8} offset={8}>
+                {tasks && (
+                  <List
+                    size="small"
+                    bordered
+                    dataSource={tasks}
+                    renderItem={(task: Task) => (
+                      <List.Item
+                        actions={[
+                          <div>
+                            {task.completed ? (
+                              <Checkbox defaultChecked={true} disabled />
+                            ) : (
+                              <Checkbox
+                                onChange={(event) =>
+                                  completeTask(event, task.task_id)
+                                }
+                              />
+                            )}
+                          </div>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={task.content}
+                          description={
+                            <Link
+                              href={`https://explorer.aptoslabs.com/account/${task.address}?network=devnet`}
+                              target="_blank"
+                            >{`${task.address.slice(
+                              0,
+                              6
+                            )}...${task.address.slice(-5)}`}</Link>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )}
+              </Col>
+            </Row>
+          )}
+        </Spin>
+      </Layout>
     </>
   );
 }
