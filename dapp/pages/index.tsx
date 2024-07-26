@@ -239,7 +239,7 @@ export default function Home() {
                     renderItem={(task: Task) => (
                       <List.Item
                         actions={[
-                          <div>
+                          <div key={task.task_id}>
                             {task.completed ? (
                               <Checkbox defaultChecked={true} disabled />
                             ) : (
