@@ -1,10 +1,10 @@
 [package]
+authors = []
 name = "todolist"
 version = "1.0.0"
-authors = []
 
 [addresses]
-todolist_addr="_"
+todolist_addr = "f1807e33128a31d6f2751ccd6dc46ad30c114f32cfe8a7e97bfa20696f0749b0"
 
 [dev-addresses]
 
