@@ -1,118 +1,275 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
+import { Button, Col, Input, Layout, List, Row, Spin, Checkbox } from "antd";
+import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
+import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
+import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import {
+  InputTransactionData,
+  useWallet,
+} from "@aptos-labs/wallet-adapter-react";
+import { CheckboxChangeEvent } from "antd/es/checkbox";
+import { useEffect, useState } from "react";
+import { aptos, moduleAddress } from "@/lib/aptos/config";
+import { Task, TodoListRessource } from "@/lib/types";
+import Link from "next/link";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+  const { account, signAndSubmitTransaction } = useWallet();
+  const [accountHasList, setAccountHasList] = useState<boolean>(false);
+  const [transactionInProgress, setTransactionInProgress] =
+    useState<boolean>(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [newTask, setNewTask] = useState<string>("");
+
+  const fetchList = async () => {
+    if (!account) return [];
+
+    try {
+      const todoListResource = await aptos.getAccountResource({
+        accountAddress: account?.address,
+        resourceType: `${moduleAddress}::todolist::TodoList`,
+      });
+      console.log("todoListResource : ", todoListResource);
+
+      const tabHandle = (todoListResource as TodoListRessource).tasks.handle;
+      const taskCounter = (todoListResource as TodoListRessource).task_counter;
+
+      let tasks = [];
+      let counter = 1;
+
+      while (counter <= taskCounter) {
+        const tableItem = {
+          key_type: "u64",
+          value_type: `${moduleAddress}::todolist::Task`,
+          key: `${counter}`,
+        };
+
+        const task = await aptos.getTableItem<Task>({
+          handle: tabHandle,
+          data: tableItem,
+        });
+
+        tasks.push(task);
+        counter++;
+      }
+
+      console.log("tasks : ", tasks);
+
+      setTasks(tasks);
+
+      setAccountHasList(true);
+    } catch (e: any) {
+      // console.log("error : ", e);
+      setAccountHasList(false);
+    }
+  };
+
+  const addNewList = async () => {
+    if (!account) return [];
+    setTransactionInProgress(true);
+
+    const transaction: InputTransactionData = {
+      data: {
+        function: `${moduleAddress}::todolist::create_list`,
+        functionArguments: [],
+      },
+    };
+
+    try {
+      const response = await signAndSubmitTransaction(transaction);
+
+      await aptos.waitForTransaction({
+        transactionHash: response.hash,
+      });
+      setAccountHasList(true);
+    } catch (error) {
+      console.error("Error while creating new list : ", error);
+    } finally {
+      setTransactionInProgress(false);
+    }
+  };
+
+  const onWriteTaskChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setNewTask(value);
+  };
+
+  const handleAddNewTask = async () => {
+    if (!account) return;
+    setTransactionInProgress(true);
+    const transaction: InputTransactionData = {
+      data: {
+        function: `${moduleAddress}::todolist::create_task`,
+        functionArguments: [newTask],
+      },
+    };
+
+    // hold the latest task.task_id from our local state
+    const latestId =
+      tasks.length > 0 ? parseInt(tasks[tasks.length - 1].task_id) + 1 : 1;
+
+    // build a newTaskToPush object into our local state
+    const newTaskToPush = {
+      address: account.address,
+      completed: false,
+      content: newTask,
+      task_id: latestId + "",
+    };
+
+    try {
+      // sign and submit transaction to chain
+      const response = await signAndSubmitTransaction(transaction);
+      // wait for transaction
+      await aptos.waitForTransaction({ transactionHash: response.hash });
+
+      // Create a new array based on current state:
+      let newTasks = [...tasks];
+
+      // Add item to the tasks array
+      newTasks.push(newTaskToPush);
+      // Set state
+      setTasks(newTasks);
+      // clear input text
+      setNewTask("");
+    } catch (error: any) {
+      console.error("error while adding new task", error);
+    } finally {
+      setTransactionInProgress(false);
+    }
+  };
+
+  const completeTask = async (event: CheckboxChangeEvent, taskId: string) => {
+    if (!account) return;
+    if (!event.target.checked) return;
+    setTransactionInProgress(true);
+    const transaction: InputTransactionData = {
+      data: {
+        function: `${moduleAddress}::todolist::complete_task`,
+        functionArguments: [taskId],
+      },
+    };
+
+    try {
+      // sign and submit transaction to chain
+      const response = await signAndSubmitTransaction(transaction);
+      // wait for transaction
+      await aptos.waitForTransaction({ transactionHash: response.hash });
+
+      setTasks((prevState) => {
+        const newState = prevState.map((obj) => {
+          // if task_id equals the checked taskId, update completed property
+          if (obj.task_id === taskId) {
+            return { ...obj, completed: true };
+          }
+
+          // otherwise return object as is
+          return obj;
+        });
+
+        return newState;
+      });
+    } catch (error: any) {
+      console.log("error", error);
+    } finally {
+      setTransactionInProgress(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log("account : ", account);
+    fetchList();
+  }, [account?.address]);
+
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <>
+      <Layout>
+        <Row align="middle">
+          <Col span={10} offset={2}>
+            <h1>Our todolist</h1>
+          </Col>
+          <Col span={12} style={{ textAlign: "right", paddingRight: "200px" }}>
+            <WalletSelector />
+          </Col>
+        </Row>
+      </Layout>
+      <Spin spinning={transactionInProgress}>
+        {!accountHasList ? (
+          <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
+            <Col span={8} offset={8}>
+              <Button
+                disabled={!account}
+                block
+                onClick={addNewList}
+                type="primary"
+                style={{ height: "40px", backgroundColor: "#3f67ff" }}
+              >
+                Add new list
+              </Button>
+            </Col>
+          </Row>
+        ) : (
+          <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
+            <Col span={8} offset={8}>
+              <Input.Group compact>
+                <Input
+                  onChange={(event) => onWriteTaskChange(event)}
+                  style={{ width: "calc(100% - 60px)" }}
+                  placeholder="Add a Task"
+                  size="large"
+                />
+                <Button
+                  onClick={handleAddNewTask}
+                  type="primary"
+                  style={{ height: "40px", backgroundColor: "#3f67ff" }}
+                >
+                  Add
+                </Button>
+              </Input.Group>
+            </Col>
+            <Col span={8} offset={8}>
+              {tasks && (
+                <List
+                  size="small"
+                  bordered
+                  dataSource={tasks}
+                  renderItem={(task: Task) => (
+                    <List.Item
+                      actions={[
+                        <div>
+                          {task.completed ? (
+                            <Checkbox defaultChecked={true} disabled />
+                          ) : (
+                            <Checkbox
+                              onChange={(event) =>
+                                completeTask(event, task.task_id)
+                              }
+                            />
+                          )}
+                        </div>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={task.content}
+                        description={
+                          <Link
+                            href={`https://explorer.aptoslabs.com/account/${task.address}?network=devnet`}
+                            target="_blank"
+                          >{`${task.address.slice(0, 6)}...${task.address.slice(
+                            -5
+                          )}`}</Link>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              )}
+            </Col>
+          </Row>
+        )}
+      </Spin>
+    </>
   );
 }
